@@ -22,9 +22,9 @@ class VideoExtractionData(BaseModel):
     
     @property
     @computed_field
-    def total_frames(cls) -> int:
+    def total_frames(self) -> int:
         """Computed property to get the total number of extracted frames."""
-        return len(cls.extracted_frames)
+        return len(self.extracted_frames)
     
     
     
