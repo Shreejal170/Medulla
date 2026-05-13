@@ -3,7 +3,7 @@ from typing import List, Optional, Annotated
 
 class ExtractedFrame(BaseModel):
     """Model representing an extracted frame from a video."""
-    frame_id: Annotated[int, Field(description="The unique identifier for the extracted frame.", examples=[1,2,3])]
+    frame_id: Annotated[str, Field(description="The unique identifier for the extracted frame.", examples=[1,2,3])]
     frame_file_path: Annotated[str,Field(description="The file path where the extracted frame is stored.", examples=["/path/to/frame1.jpg"])]
     timestamp_sec: Annotated[float,Field(description="The timestamp in seconds corresponding to the extracted frame.",examples=[0.033, 1.5, 2.0])]
     
@@ -30,7 +30,7 @@ class VideoExtractionData(BaseModel):
     
 class FrameAnalysis(BaseModel):
     """Model representing the analysis results for a single extracted frame."""
-    frame_id: Annotated[int, Field(description="The unique identifier for the analyzed frame.", examples=[1])]
+    frame_id: Annotated[str, Field(description="The unique identifier for the analyzed frame.", examples=[1])]
     is_authentic: Annotated[bool, Field(description="Indicates whether the frame is authentic or not.", examples=[True])]
     confidence_score: Annotated[float, Field(description="The confidence score of the authenticity prediction for the frame.", examples=[0.95])]
     synthesis_artifacts: Optional[Annotated[List[str], Field(description="A list of detected synthesis artifacts in the frame, if any.", examples=[["artifact1", "artifact2"]])]] = []
