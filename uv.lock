@@ -127,7 +127,6 @@ source = { virtual = "." }
 dependencies = [
     { name = "colorlog" },
     { name = "fastapi" },
-    { name = "pydantic" },
     { name = "strawberry-graphql", extra = ["fastapi"] },
     { name = "uvicorn" },
 ]
@@ -141,7 +140,6 @@ dev = [
 requires-dist = [
     { name = "colorlog", specifier = ">=6.10.1" },
     { name = "fastapi", specifier = ">=0.136.1" },
-    { name = "pydantic", specifier = ">=2.13.4" },
     { name = "strawberry-graphql", extras = ["fastapi"], specifier = ">=0.315.4" },
     { name = "uvicorn", specifier = ">=0.46.0" },
 ]
