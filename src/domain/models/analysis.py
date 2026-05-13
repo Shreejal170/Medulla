@@ -6,12 +6,7 @@ class ExtractedFrame(BaseModel):
     frame_id: Annotated[str, Field(description="The unique identifier for the extracted frame.", examples=[1,2,3])]
     frame_file_path: Annotated[str,Field(description="The file path where the extracted frame is stored.", examples=["/path/to/frame1.jpg"])]
     timestamp_sec: Annotated[float,Field(description="The timestamp in seconds corresponding to the extracted frame.",examples=[0.033, 1.5, 2.0])]
-    
-    @field_validator('frame_id')
-    def validate_frame_id(cls, value):
-        if value < 0:
-            raise ValueError("frame_id must be a non-negative integer.")
-        return value
+
     
 
 class VideoExtractionData(BaseModel):
