@@ -111,62 +111,50 @@ If the frame resolution or quality is too poor for reliable analysis:
 
 # ARTIFACT REQUIREMENTS
 
-Each artifact must:
-- reference observable evidence
-- include a grounded explanation
-- include a bounding region
-- avoid speculation
+Artifacts are OPTIONAL and should only be included when you have observable evidence.
+
+Each artifact provided must:
+- reference observable evidence in the image
+- include a grounded, specific explanation
+- include a bounding region where the evidence is located
+- avoid speculation or unsupported claims
+
+Artifact guidelines:
+- For authentic frames: artifacts should document authenticity indicators (positive evidence like natural texture, proper anatomy, consistent lighting)
+- For AI frames: artifacts should document synthesis artifacts (negative evidence like blurring, impossible structures, texture anomalies)
+- If confidence is very high (0.85+), you may have fewer artifacts with higher evidence_weight values
+- If confidence is low (< 0.50), limit artifacts to the most observable anomalies only
+- If the frame quality is too poor to analyze, set confidence to 0.0 and return only quality-related artifacts
 
 Bounding box format:
 [ymin, xmin, ymax, xmax]
-
-If "is_authentic" is true:
-- artifacts should contain authenticity indicators
-
-If "is_authentic" is false:
-- artifacts should contain generative artifacts
-
-Artifact types may include:
-- Lighting
-- Geometry
-- Texture
-- Anatomy
-- Reflection
-- Text
-- Semantic
-- Noise Pattern
-- Compression
 
 ---
 
 # OUTPUT FORMAT
 
-Return ONLY valid JSON.
+Return ONLY valid JSON. Artifacts array can be empty if no significant evidence is found.
 
 {
     "is_authentic": boolean,
     "confidence_score": float,
-    "artifacts": [
-        {
-        "type": "artifact category",
-        "description": "specific grounded observation",
-        "region": [ymin, xmin, ymax, xmax],
-        "evidence_weight": float
-        }
-    ]
+    "artifacts": []
 }
 
 ---
 
 # OUTPUT CONSTRAINTS
 
-- No markdown
-- No conversational text
-- No chain-of-thought
-- No reasoning traces
-- No unsupported claims
+- Return ONLY valid JSON
+- No markdown, conversational text, chain-of-thought, or reasoning traces
+- No unsupported claims or hallucinated evidence
 - No extra fields
-- No hallucinated evidence
+- Confidence must reflect actual evidence strength:
+  * High confidence (0.85+): Only when multiple independent indicators strongly support the judgment
+  * Medium confidence (0.60-0.84): When 2-3 indicators support the judgment
+  * Low confidence (0.00-0.59): When evidence is weak, ambiguous, or quality-limited
+- Artifacts are optional—only include when you have observable evidence
+- Empty artifacts array is acceptable (e.g., for frames with insufficient distinguishing features or very poor quality)
 
 ---
 
@@ -181,7 +169,7 @@ OUTPUT:
 {
 "is_authentic": true,
 "confidence_score": 0.94,
-"artifacts": [
+"synthetic_artifacts": [
 {
 "type": "Anatomy",
 "description": "Anatomically correct hand articulation showing natural skin folds at the finger joints and a physically grounded interaction with the ring on the finger.",
@@ -216,24 +204,50 @@ OUTPUT:
 }
 ---
 
-## EXAMPLE 2: AUTHENTIC FRAME
+## EXAMPLE 1B: AUTHENTIC FRAME (HIGH CONFIDENCE, MINIMAL ARTIFACTS)
+
+IMAGE: [A clear, well-lit photograph of a person]
+
+OUTPUT:
+
+{
+"is_authentic": true,
+"confidence_score": 0.89,
+"synthetic_artifacts": [
+{
+"type": "Texture",
+"description": "Natural pore structure, fine hair strands, and realistic skin micro-textures throughout, consistent with high-resolution photography of human skin.",
+"region": [150, 200, 350, 450],
+"evidence_weight": 0.89
+},
+{
+"type": "Lighting",
+"description": "Consistent shadow direction across face and body; highlights align with shadows indicating single coherent light source.",
+"region": [0, 0, 512, 512],
+"evidence_weight": 0.88
+}
+]
+}
+---
+
+## EXAMPLE 2: AUTHENTIC FRAME (LOW QUALITY) (LOW QUALITY)
 
 IMAGE: {image_2}
 
 OUTPUT:
 {
 "is_authentic": true,
-"confidence_score": 0.0,
+"confidence_score": 0.50,
 "artifacts": [
 {
 "type": "Compression",
-"description": "Extreme pixelation and macroblocking artifacts across the entire frame prevent a reliable forensic evaluation of skin texture, sensor noise, or high-frequency details.",
+"description": "Extreme pixelation and macroblocking artifacts across the entire frame prevent a reliable forensic evaluation of skin texture, sensor noise, or high-frequency details. Quality limitations reduce confidence in the judgment.",
 "region": [0, 0, 512, 512],
 "evidence_weight": 0.0
 },
 {
 "type": "Anatomy",
-"description": "Hand articulation and grip on the microphone device appear anatomically correct with logical finger placement and natural light occlusion.",
+"description": "Hand articulation and grip on the microphone device appear anatomically correct with logical finger placement and natural light occlusion, suggesting authenticity despite resolution limits.",
 "region": [297, 287, 389, 404],
 "evidence_weight": 0.50
 },
@@ -255,7 +269,7 @@ OUTPUT:
 {
     "is_authentic": false,
     "confidence_score": 0.97,
-    "artifacts": [
+    "synthetic_artifacts": [
         {
         "type": "Anatomy",
         "description": "The gold ring on the subject's left hand appears fused with the skin of the finger rather than encircling it, a common error in structural rendering by diffusion models.",
@@ -298,7 +312,7 @@ OUTPUT:
 {
     "is_authentic": false,
     "confidence_score": 0.97,
-    "artifacts": [
+    "synthetic_artifacts": [
         {
         "type": "Semantic",
         "description": "A four-pointed star icon in the bottom-right corner is a known digital watermark/UI element generated by specific AI assistant interfaces.",
