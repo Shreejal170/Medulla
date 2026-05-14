@@ -20,6 +20,13 @@ class VideoExtractionData(BaseModel):
     def total_frames(self) -> int:
         """Computed property to get the total number of extracted frames."""
         return len(self.extracted_frames)
+class SynthesisArtifact(BaseModel):
+    """Model representing a detected synthesis artifact in a frame."""
+    artifact_type: Annotated[str, Field(description="The type of synthesis artifact detected.", examples=["blurring", "inconsistent lighting"])]
+    description: Annotated[str, Field(description="A brief description of the detected artifact.", examples=["Blurring detected around the edges of the face."])]
+    region: Optional[Annotated[List[int], Field(description="The coordinates of the region in the frame where the artifact was detected, in the format [x1, y1, x2, y2].", examples=[[100, 150, 200, 250]])]] = None
+    evidence_weight: Optional[Annotated[float, Field(description="The weight of the evidence for this artifact in contributing to the authenticity prediction.", examples=[0.8])]] = None
+    
     
 class FrameAnalysis(BaseModel):
     """Model representing the analysis results for a single extracted frame."""
