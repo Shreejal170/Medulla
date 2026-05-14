@@ -6,6 +6,3 @@ class VideoIngestionEvent(BaseModel):
     file_path: str = Field(..., description="Path to the video file")
     sampling_fps: float = Field(0.5, description="Frame rate for video sampling")
 
-if __name__ == "__main__":
-    # Example usage
-    print("This module defines data models for video ingestion events.")
