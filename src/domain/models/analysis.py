@@ -16,6 +16,7 @@ class VideoExtractionData(BaseModel):
     audio_path: Optional[Annotated[str, Field(description="The file path where the extracted audio is stored.", examples=["/path/to/audio.wav"])]]
     
     @computed_field
+    @property
     def total_frames(self) -> int:
         """Computed property to get the total number of extracted frames."""
         return len(self.extracted_frames)
