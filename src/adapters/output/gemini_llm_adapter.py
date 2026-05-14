@@ -28,7 +28,7 @@ class GeminiLlmAdapter(LlmPort):
             
             # Map LLM response artifacts (with "type" field) to SynthesisArtifact objects (with "artifact_type" field)
             artifacts = []
-            for artifact_data in result.get("artifacts", []):
+            for artifact_data in result.get("synthesis_artifacts", []):
                 artifact = SynthesisArtifact(
                     artifact_type=artifact_data.get("type"),
                     description=artifact_data.get("description"),
@@ -62,7 +62,7 @@ class GeminiLlmAdapter(LlmPort):
             
             # Assuming the response is a list of artifacts: 
             # [{"type": "...", "description": "...", "region": [ymin, xmin, ymax, xmax]}]
-            artifacts = response.get("artifacts", [])
+            artifacts = response.get("synthesis_artifacts", [])
             
             if not artifacts:
                 logger.info("No visual artifacts identified by the forensic LLM call.")
