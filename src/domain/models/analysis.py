@@ -1,19 +1,25 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator, computed_field
+from typing import List, Optional, Annotated
 
 class ExtractedFrame(BaseModel):
     """Model representing an extracted frame from a video."""
-    frame_id: str
-    file_path: str
-    timestamp_sec: float
+    frame_id: Annotated[str, Field(description="The unique identifier for the extracted frame.", examples=[1,2,3])]
+    frame_file_path: Annotated[str,Field(description="The file path where the extracted frame is stored.", examples=["/path/to/frame1.jpg"])]
+    timestamp_sec: Annotated[float,Field(description="The timestamp in seconds corresponding to the extracted frame.",examples=[0.033, 1.5, 2.0])]
+
     
 
 class VideoExtractionData(BaseModel):
     """Model representing the data extracted from the video for downstream analysis."""
-    video_id: str
-    frames: List[ExtractedFrame]
-    audio_path: Optional[str] = None
-    total_frames_extracted: int
+    video_id: Annotated[str, Field(description="The unique identifier for the video.", examples=["video_123"])]
+    extracted_frames: Annotated[List[ExtractedFrame], Field(description="A list of frames extracted from the video for analysis.",examples=[[{"frame_id": 1, "frame_file_path": "/path/to/frame1.jpg", "timestamp_sec": 0.033}]])]
+    audio_path: Optional[Annotated[str, Field(description="The file path where the extracted audio is stored.", examples=["/path/to/audio.wav"])]]
+    
+    @property
+    @computed_field
+    def total_frames(self) -> int:
+        """Computed property to get the total number of extracted frames."""
+        return len(self.extracted_frames)
     
     
     
