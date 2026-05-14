@@ -55,7 +55,7 @@ def main(video_path: str):
     print(
         f"\nExtraction complete."
         f"\nFrames extracted: "
-        f"{result.total_frames_extracted}\n"
+        f"{result.total_frames}\n"
     )
 
 
