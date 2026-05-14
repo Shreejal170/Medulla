@@ -15,18 +15,11 @@ class VideoExtractionData(BaseModel):
     extracted_frames: Annotated[List[ExtractedFrame], Field(description="A list of frames extracted from the video for analysis.",examples=[[{"frame_id": 1, "frame_file_path": "/path/to/frame1.jpg", "timestamp_sec": 0.033}]])]
     audio_path: Optional[Annotated[str, Field(description="The file path where the extracted audio is stored.", examples=["/path/to/audio.wav"])]]
     
-    @property
     @computed_field
+    @property
     def total_frames(self) -> int:
         """Computed property to get the total number of extracted frames."""
         return len(self.extracted_frames)
-    
-
-class VideoAnalysisResult(BaseModel):
-    """Model representing the overall analysis results for a video."""
-    video_id: Annotated[str, Field(description="The unique identifier for the analyzed video.", examples=["video_123"])]
-    frame_analyses: Annotated[List[FrameAnalysis], Field(description="A list of analysis results for each extracted frame in the video.", examples=[[{"frame_id": 1, "is_authentic": True, "confidence_score": 0.75, "synthesis_artifacts": ["artifact1", "artifact2"]}]])]
-
     
 class FrameAnalysis(BaseModel):
     """Model representing the analysis results for a single extracted frame."""
@@ -34,6 +27,11 @@ class FrameAnalysis(BaseModel):
     is_authentic: Annotated[bool, Field(description="Indicates whether the frame is authentic or not.", examples=[True])]
     confidence_score: Annotated[float, Field(description="The confidence score of the authenticity prediction for the frame.", examples=[0.95])]
     synthesis_artifacts: Optional[Annotated[List[str], Field(description="A list of detected synthesis artifacts in the frame, if any.", examples=[["artifact1", "artifact2"]])]] = []
+
+class VideoAnalysisResult(BaseModel):
+    """Model representing the overall analysis results for a video."""
+    video_id: Annotated[str, Field(description="The unique identifier for the analyzed video.", examples=["video_123"])]
+    frame_analyses: Annotated[List[FrameAnalysis], Field(description="A list of analysis results for each extracted frame in the video.", examples=[[{"frame_id": 1, "is_authentic": True, "confidence_score": 0.75, "synthesis_artifacts": ["artifact1", "artifact2"]}]])]
 
 
 class VideoMetrics(BaseModel):
