@@ -1,7 +1,7 @@
 from Medulla.src.domain.models.analysis import VideoExtractionData,VideoAnalysisResult,FrameAnalysis, VideoMetrics, ExtractedFrame
 from Medulla.src.application.prompts.FrameAnalysisPrompt import FrameAnalysisPrompt
 from Medulla.src.ports.output.llm_port import LlmPort
-from Medulla.src.core.logging_config import setup_logging
+from src.core.logging_config import setup_logging
 import logging
 setup_logging()
 logger = logging.getLogger(__name__)

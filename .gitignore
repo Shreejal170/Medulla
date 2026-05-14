@@ -74,5 +74,6 @@ poetry.lock
 # Local dev artifacts
 instance/
 
-
-sample_images/
+# Temp files
+temp_frames/
+*.mp4
