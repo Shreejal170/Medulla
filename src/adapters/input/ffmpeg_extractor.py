@@ -94,9 +94,8 @@ class FFmpegExtractor(FrameExtractorPort):
             
             return VideoExtractionData(
                 video_id=video_id,
-                frames=extracted_frames,
-                audio_path=None,
-                total_frames_extracted=len(extracted_frames)
+                extracted_frames=extracted_frames,
+                audio_path=None
             )
         
         except (FileNotFoundError, ValueError) as e:
@@ -276,7 +275,7 @@ class FFmpegExtractor(FrameExtractorPort):
                 extracted_frames.append(
                     ExtractedFrame(
                         frame_id=f"frame_{frame_index:04d}",
-                        file_path=frame_file_str,
+                        frame_file_path=frame_file_str,
                         timestamp_sec=timestamp_sec
                     )
                 )
