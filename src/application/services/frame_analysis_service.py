@@ -1,5 +1,5 @@
 from src.domain.models.analysis import VideoExtractionData,VideoAnalysisResult,FrameAnalysis, VideoMetrics, ExtractedFrame
-from src.application.prompts.FrameAnalysisPrompt import FrameAnalysisPrompt
+from Medulla.src.application.prompts.frame_analysis_prompt import FrameAnalysisPrompt
 from src.ports.output.llm_port import LlmPort
 import logging
 from src.utils.image_loader import load_image
