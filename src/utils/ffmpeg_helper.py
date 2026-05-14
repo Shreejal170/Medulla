@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 from PIL import Image
 
-from domain.models.analysis import ExtractedFrame, VideoExtractionData
+from src.domain.models.analysis import ExtractedFrame, VideoExtractionData
 
 logger = logging.getLogger(__name__)
 

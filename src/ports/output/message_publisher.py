@@ -5,7 +5,14 @@ class MessagePublisherPort(ABC):
     """
     Abstract interface for publishing messages asynchronously to a message broker.
     """
-    
+    @abstractmethod
+    async def start(self):
+        pass
+
+    @abstractmethod
+    async def stop(self):
+        pass
+
     @abstractmethod
     async def publish(self, topic: str, message: BaseModel) -> None:
         """

@@ -77,3 +77,7 @@ instance/
 # Temp files
 temp_frames/
 *.mp4
+
+data/
+
+scripts/
