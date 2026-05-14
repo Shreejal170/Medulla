@@ -1,8 +1,17 @@
 import os
-import subprocess
 import logging
 from pathlib import Path
 from PIL import Image
+
+try:
+    import ffmpeg
+except ImportError as e:
+    raise ImportError(
+        "ffmpeg-python is required but not installed. "
+        "Please run: pip install ffmpeg-python\n"
+        "Note: You also need FFmpeg binary installed on your system. "
+        "See docs/ffmpeg_setup.md for installation instructions."
+    ) from e
 
 from ports.output.frame_extractor_port import FrameExtractorPort
 from domain.models.analysis import ExtractedFrame, VideoExtractionData
@@ -13,7 +22,13 @@ logger = logging.getLogger(__name__)
 
 class FFmpegExtractor(FrameExtractorPort):
     """
-    Frame extractor using FFmpeg.
+    Frame extractor using FFmpeg via ffmpeg-python abstraction.
+    
+    Benefits of ffmpeg-python over raw subprocess:
+    - Cleaner, more maintainable API
+    - Platform-independent command building
+    - Better error handling and reporting
+    - Easier to test and mock
     
     Replaces OpenCV with FFmpeg for improved:
     - codec support
@@ -21,23 +36,53 @@ class FFmpegExtractor(FrameExtractorPort):
     - platform stability
     """
 
-    def __init__(self, output_dir: str = "temp_frames", ffmpeg_bin: str = "ffmpeg"):
+    def __init__(self, output_dir: str = "temp_frames"):
         """
         Initialize FFmpeg extractor.
         
         Args:
             output_dir: Directory to save extracted frames
-            ffmpeg_bin: Path to ffmpeg binary (default: system PATH)
+            
+        Raises:
+            RuntimeError: If FFmpeg binary is not found in PATH
         """
         self.output_dir = output_dir
-        self.ffmpeg_bin = ffmpeg_bin
         self.max_dimension = 512  # Max width or height for normalization
+        
+        # Verify FFmpeg is available
+        self._verify_ffmpeg_available()
         
         try:
             os.makedirs(self.output_dir, exist_ok=True)
         except OSError as e:
             logger.error(f"Failed to create output directory {self.output_dir}: {e}")
             raise
+    
+    def _verify_ffmpeg_available(self) -> None:
+        """
+        Verify that FFmpeg binary is available.
+        
+        Raises:
+            RuntimeError: If FFmpeg is not found in PATH
+        """
+        try:
+            ffmpeg.probe(None)
+        except ffmpeg.Error as e:
+            error_msg = (
+                "FFmpeg binary not found in system PATH.\n"
+                "Please install FFmpeg:\n"
+                "  - macOS: brew install ffmpeg\n"
+                "  - Ubuntu/Debian: sudo apt-get install ffmpeg\n"
+                "  - Windows: choco install ffmpeg (or download from ffmpeg.org)\n"
+                "See docs/ffmpeg_setup.md for detailed setup instructions."
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+        except Exception as e:
+            # ffmpeg.probe(None) might fail differently, but if we can't detect
+            # ffmpeg availability, we should fail loudly
+            logger.debug(f"FFmpeg availability check: {e}")
+            # For now, we'll proceed and let actual operations fail if FFmpeg is missing
 
     def extract(
         self,
@@ -101,9 +146,16 @@ class FFmpegExtractor(FrameExtractorPort):
         except (FileNotFoundError, ValueError) as e:
             logger.error(f"Extraction validation error for {video_id}: {e}")
             raise
-        except subprocess.CalledProcessError as e:
-            logger.error(f"FFmpeg execution failed: {e.stderr.decode() if e.stderr else str(e)}")
-            raise RuntimeError(f"FFmpeg extraction failed: {str(e)}") from e
+        except ffmpeg.Error as e:
+            error_msg = (
+                f"FFmpeg execution failed: {e.stderr.decode() if e.stderr else str(e)}"
+                if hasattr(e, 'stderr') else f"FFmpeg error: {str(e)}"
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+        except RuntimeError:
+            # Re-raise RuntimeError from extraction logic
+            raise
         except Exception as e:
             logger.error(f"Unexpected error during extraction for {video_id}: {e}")
             raise RuntimeError(f"Unexpected extraction error: {str(e)}") from e
@@ -173,34 +225,52 @@ class FFmpegExtractor(FrameExtractorPort):
             FPS value or None if probe fails
         """
         try:
-            cmd = [
-                self.ffmpeg_bin,
-                "-v", "error",
-                "-select_streams", "v:0",
-                "-show_entries", "stream=r_frame_rate",
-                "-of", "default=noprint_wrappers=1:nokey=1:noinheader=1",
-                file_path
-            ]
+            probe = ffmpeg.probe(file_path, select_streams='v:0')
             
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                timeout=10,
-                check=False
+            # Extract video stream
+            video_stream = next(
+                (stream for stream in probe['streams'] if stream['codec_type'] == 'video'),
+                None
             )
             
-            if result.returncode == 0 and result.stdout:
-                fps_str = result.stdout.decode().strip()
-                # Handle frame rate like "30000/1001" (29.97 fps)
-                if "/" in fps_str:
-                    num, den = map(float, fps_str.split("/"))
-                    return num / den if den != 0 else None
-                return float(fps_str)
+            if not video_stream:
+                logger.warning(f"No video stream found in {file_path}")
+                return None
             
+            # Get frame rate from r_frame_rate (rational format like "30000/1001")
+            if 'r_frame_rate' in video_stream:
+                fps_str = video_stream['r_frame_rate']
+                if "/" in fps_str:
+                    try:
+                        num, den = map(float, fps_str.split("/"))
+                        fps = num / den if den != 0 else None
+                        logger.debug(f"Probed FPS: {fps_str} = {fps}")
+                        return fps
+                    except (ValueError, ZeroDivisionError):
+                        logger.warning(f"Could not parse FPS value: {fps_str}")
+                else:
+                    try:
+                        return float(fps_str)
+                    except ValueError:
+                        logger.warning(f"Could not parse FPS value: {fps_str}")
+            
+            # Fallback to avg_frame_rate if r_frame_rate not available
+            if 'avg_frame_rate' in video_stream:
+                fps_str = video_stream['avg_frame_rate']
+                if "/" in fps_str:
+                    try:
+                        num, den = map(float, fps_str.split("/"))
+                        fps = num / den if den != 0 else None
+                        logger.debug(f"Using avg_frame_rate: {fps_str} = {fps}")
+                        return fps
+                    except (ValueError, ZeroDivisionError):
+                        pass
+            
+            logger.warning(f"Could not determine FPS from probe data")
             return None
         
-        except subprocess.TimeoutExpired:
-            logger.warning(f"FFmpeg probe timeout for {file_path}")
+        except ffmpeg.Error as e:
+            logger.warning(f"FFmpeg probe failed: {e.stderr.decode() if hasattr(e, 'stderr') else str(e)}")
             return None
         except Exception as e:
             logger.warning(f"Failed to probe video FPS: {e}")
@@ -214,10 +284,13 @@ class FFmpegExtractor(FrameExtractorPort):
         sampling_fps: float
     ) -> list[ExtractedFrame]:
         """
-        Extract frames using FFmpeg with fps filter.
+        Extract frames using FFmpeg with fps filter via ffmpeg-python.
         
         Returns:
             List of ExtractedFrame objects
+            
+        Raises:
+            RuntimeError: If FFmpeg execution fails
         """
         
         frame_interval = max(int(original_fps / sampling_fps), 1)
@@ -229,26 +302,32 @@ class FFmpegExtractor(FrameExtractorPort):
             f"{video_id}_%04d.jpg"
         )
         
-        cmd = [
-            self.ffmpeg_bin,
-            "-i", file_path,
-            "-vf", f"fps={fps_filter}",
-            "-q:v", "2",  # Quality: 2 (high quality)
-            output_pattern
-        ]
-        
-        logger.debug(f"Running FFmpeg: {' '.join(cmd)}")
-        
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=600  # 10 minute timeout
+        logger.debug(
+            f"Extracting frames from {file_path} "
+            f"at {fps_filter:.2f} fps (original: {original_fps:.2f}, "
+            f"sampling: {sampling_fps:.2f})"
         )
         
-        if result.returncode != 0:
-            stderr = result.stderr.decode() if result.stderr else "Unknown error"
-            logger.error(f"FFmpeg failed: {stderr}")
-            raise subprocess.CalledProcessError(result.returncode, cmd, stderr=result.stderr)
+        try:
+            # Use ffmpeg-python to build and execute the extraction pipeline
+            (
+                ffmpeg
+                .input(file_path)
+                .filter('fps', f'{fps_filter:.2f}')
+                .output(output_pattern, q=2)  # q=2 for high quality
+                .overwrite_output()  # Overwrite existing files
+                .run(quiet=False, capture_stdout=False, capture_stderr=True)
+            )
+            
+            logger.debug(f"FFmpeg extraction completed successfully")
+        
+        except ffmpeg.Error as e:
+            stderr = e.stderr.decode() if hasattr(e, 'stderr') and e.stderr else "Unknown error"
+            logger.error(f"FFmpeg extraction failed: {stderr}")
+            raise RuntimeError(f"FFmpeg frame extraction failed: {stderr}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error during FFmpeg execution: {e}")
+            raise RuntimeError(f"Frame extraction error: {str(e)}") from e
         
         # Scan output directory for generated frames
         extracted_frames = []
@@ -260,6 +339,8 @@ class FFmpegExtractor(FrameExtractorPort):
                 output_dir_path.glob(f"{video_id}_*.jpg"),
                 key=lambda x: int(x.stem.split("_")[-1])
             )
+            
+            logger.debug(f"Found {len(frame_files)} frame files")
             
             for frame_file in frame_files:
                 frame_file_str = str(frame_file)
