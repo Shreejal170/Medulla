@@ -1,5 +1,5 @@
 from src.domain.models.analysis import VideoExtractionData,VideoAnalysisResult,FrameAnalysis, VideoMetrics, ExtractedFrame
-from Medulla.src.application.prompts.frame_analysis_prompt import FrameAnalysisPrompt
+from src.application.prompts.frame_analysis_prompt import FrameAnalysisPrompt
 from src.ports.output.llm_port import LlmPort
 import logging
 from src.utils.image_loader import load_image
@@ -26,13 +26,14 @@ class FrameAnalysisService:
             logger.info(f"Analyzing frame {frame.frame_id} for video {video_extraction_data.video_id}")
             try:
                 # Load the frame image
-                image_data = load_image(frame.frame_path)
+                image_data = load_image(frame.frame_file_path)
 
                 # Generate the prompt for the LLM
-                prompt = FrameAnalysisPrompt.SYSTEMPROMPT
+                load_images = FrameAnalysisPrompt._load_sample_images()
+                prompt = FrameAnalysisPrompt.SYSTEM_PROMPT
 
                 # Call the LLM port to get the analysis result for the frame
-                result = await self.llm_port.generate_batch_frame_analysis(prompt, image_data, frame.frame_id)
+                result = await self.llm_port.generate_frame_analysis(prompt, image_data, frame.frame_id)
                 frame_analysis = FrameAnalysis(
                     frame_id=frame.frame_id,
                     is_authentic=result.is_authentic,
