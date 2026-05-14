@@ -73,3 +73,6 @@ poetry.lock
 
 # Local dev artifacts
 instance/
+
+
+sample_images/
