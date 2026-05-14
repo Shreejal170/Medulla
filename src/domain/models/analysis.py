@@ -33,7 +33,7 @@ class FrameAnalysis(BaseModel):
     frame_id: Annotated[str, Field(description="The unique identifier for the analyzed frame.", examples=["frame_0001","frame_0002"])]
     is_authentic: Annotated[bool, Field(description="Indicates whether the frame is authentic or not.", examples=[True])]
     confidence_score: Annotated[float, Field(description="The confidence score of the authenticity prediction for the frame.", examples=[0.95])]
-    synthesis_artifacts: Optional[Annotated[List[str], Field(description="A list of detected synthesis artifacts in the frame, if any.", examples=[["artifact1", "artifact2"]])]] = []
+    synthesis_artifacts: Optional[Annotated[List[SynthesisArtifact], Field(description="A list of detected synthesis artifacts in the frame, if any.", examples=[[{"artifact_type": "artifact1", "description": "description"}]])]] = []
 
 class VideoAnalysisResult(BaseModel):
     """Model representing the overall analysis results for a video."""
@@ -48,3 +48,4 @@ class VideoMetrics(BaseModel):
     authentic_frame_count: Annotated[int, Field(description="The number of frames identified as authentic in the video.", examples=[80])]
     uncertain_frame_count: Annotated[int, Field(description="The number of frames for which the authenticity could not be determined.", examples=[0])]
     average_confidence: Annotated[float, Field(description="The average confidence score across all analyzed frames in the video.", examples=[0.92])]
+    analysis_summary: Annotated[str, Field(description="A concise summary of the overall analysis results for the video, highlighting reasoning for the authenticity predictions.", examples=["The video appears to be authentic with a high confidence score across all frames. No significant synthesis artifacts were detected."])]
