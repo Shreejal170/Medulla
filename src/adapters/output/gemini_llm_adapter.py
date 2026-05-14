@@ -1,7 +1,7 @@
-from src.domain.models.analysis import VideoExtractionData,VideoAnalysisResult,FrameAnalysis, VideoMetrics, ExtractedFrame
+from Medulla.src.domain.models.analysis import VideoExtractionData,VideoAnalysisResult,FrameAnalysis, VideoMetrics, ExtractedFrame
 from Medulla.src.application.prompts.FrameAnalysisPrompt import FrameAnalysisPrompt
 from Medulla.src.ports.output.llm_port import LlmPort
-from src.core.logging_config import setup_logging
+from Medulla.src.core.logging_config import setup_logging
 import logging
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -30,8 +30,31 @@ class GeminiLlmAdapter(LlmPort):
             return FrameAnalysis(frame_id="unknown", is_authentic=False, confidence_score=0.0, synthesis_artifacts=[])
         
         
-    def generate_analysis_summary(self, video_analysis: VideoAnalysisResult, prompt:str) -> VideoMetrics:
-        """Generates a concise summary of the overall analysis results for the video, highlighting reasoning for the"""
-        pass
+    def generate_analysis_summary(self, analyses: list[FrameAnalysis], prompt: str) -> list[dict]:
+        """
+        Generates a detailed forensic summary of visual artifacts.
+        
+        This satisfies the Stage 2 requirement: Extracting synthesis artifacts 
+        (lighting, anatomy) and affected regions to justify the verdict.
+        """
+        try:
+            # The prompt here should be the specialized Forensic Analysis Prompt
+            response = self.llm_client.generate(prompt)
+            
+            # Assuming the response is a list of artifacts: 
+            # [{"type": "...", "description": "...", "region": [ymin, xmin, ymax, xmax]}]
+            artifacts = response.get("artifacts", [])
+            
+            if not artifacts:
+                logger.info("No visual artifacts identified by the forensic LLM call.")
+                return []
+
+            logger.info(f"Successfully extracted {len(artifacts)} forensic artifacts.")
+            return artifacts
+
+        except Exception as e:
+            # Resilience: Partial failure of forensic synthesis does not crash the pipeline
+            logger.error(f"Error generating forensic artifact summary: {str(e)}", exc_info=True)
+            return []
         
         
