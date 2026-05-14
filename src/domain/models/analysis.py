@@ -31,7 +31,7 @@ class FrameAnalysis(BaseModel):
 class VideoAnalysisResult(BaseModel):
     """Model representing the overall analysis results for a video."""
     video_id: Annotated[str, Field(description="The unique identifier for the analyzed video.", examples=["video_123"])]
-    frame_analyses: Annotated[List[FrameAnalysis], Field(description="A list of analysis results for each extracted frame in the video.", examples=[[{"frame_id": 1, "is_authentic": True, "confidence_score": 0.75, "synthesis_artifacts": ["artifact1", "artifact2"]}]])]
+    frame_analyses: Annotated[List[FrameAnalysis], Field(description="A list of analysis results for each extracted frame in the video.", examples=[[{"frame_id": "frame_0001", "is_authentic": True, "confidence_score": 0.95, "synthesis_artifacts": ["artifact1", "artifact2"]}]])]
 
 
 class VideoMetrics(BaseModel):
