@@ -217,7 +217,7 @@ def run_decision_engine(
     if metrics.total_valid_frames == 0:
         err_msg = "Zero valid frames after processing."
 
-        metrics.analsysis_summary = err_msg
+        metrics.analysis_summary = err_msg
 
         return (
             VideoAnalysisResult(
@@ -245,7 +245,7 @@ def run_decision_engine(
             if (v := rule(ctx)) is not None
         )
 
-        metrics.analsysis_summary = (
+        metrics.analysis_summary = (
             f"{verdict.explanation} | "
             f"Status: {verdict.status} | "
             f"Confidence: {verdict.confidence}"

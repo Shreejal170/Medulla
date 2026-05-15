@@ -1,48 +1,118 @@
 from src.domain.models.analysis import (
-    VideoAnalysisResult,
     FrameAnalysis,
-    VideoMetrics,
     SynthesisArtifact,
 )
 from src.ports.output.llm_port import LlmPort
 from src.core.logging_config import setup_logging
+from google.genai import types
+import base64
 import logging
+import json
+import re
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 
 class GeminiLlmAdapter(LlmPort):
-    """Adapter class to integrate with the Gemini LLM for generating frame analysis results."""
 
     def __init__(self, llm_client, model_name: str = "gemini-3.1-flash-lite"):
         self.llm_client = llm_client
         self.model_name = model_name
 
+    def _build_contents(self, prompt: str, image_data) -> list[types.Content]:
+        """
+        Converts raw prompt + image_data into Gemini-native types.Content objects.
+        Handles base64 strings, raw bytes, and file paths.
+        """
+        # --- Build the image Part ---
+        if isinstance(image_data, bytes):
+            image_part = types.Part.from_bytes(
+                data=image_data,
+                mime_type="image/jpeg",
+            )
+        elif isinstance(image_data, str):
+            # Could be a base64 string or a file path
+            try:
+                raw_bytes = base64.b64decode(image_data)
+                image_part = types.Part.from_bytes(
+                    data=raw_bytes,
+                    mime_type="image/jpeg",
+                )
+            except Exception:
+                # Treat as file path
+                with open(image_data, "rb") as f:
+                    image_part = types.Part.from_bytes(
+                        data=f.read(),
+                        mime_type="image/jpeg",
+                    )
+        else:
+            # Already a Gemini Part or Image — pass through
+            image_part = image_data
+
+        return [
+            # Gemini has no "system" role in contents — prepend system instruction
+            # as a user turn, or use system_instruction in config (see below).
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=prompt),
+                    image_part,
+                ],
+            )
+        ]
+
+    @staticmethod
+    def _clean_schema(schema: dict) -> dict:
+        """
+        Recursively remove 'examples' keys from a Pydantic JSON schema
+        because Google GenAI's Schema type does not accept them.
+        """
+        if isinstance(schema, dict):
+            return {
+                k: GeminiLlmAdapter._clean_schema(v)
+                for k, v in schema.items()
+                if k != "examples"
+            }
+        if isinstance(schema, list):
+            return [GeminiLlmAdapter._clean_schema(item) for item in schema]
+        return schema
+
+    def _parse_response(self, response) -> dict:
+        if hasattr(response, "parsed") and response.parsed is not None:
+            parsed = response.parsed
+            return parsed if isinstance(parsed, dict) else parsed.__dict__
+        raw = response.text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        return json.loads(raw)
+
     async def generate_frame_analysis(
         self, prompt: str, image_data, frame_id: str
     ) -> FrameAnalysis:
-        """Generates results based on the provided data using the Gemini LLM."""
         try:
-            content = [prompt, image_data]  # Adjust content structure
+            contents = self._build_contents(prompt, image_data)
+
             response = self.llm_client.models.generate_content(
-                model=self.model_name, contents=content
+                model=self.model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=self._clean_schema(FrameAnalysis.model_json_schema()),
+                ),
             )
-            # Parse response.text as JSON (assuming LLM returns JSON)
-            import json
 
-            result = json.loads(response.text)
+            result = self._parse_response(response)
 
-            # Map LLM response artifacts (with "type" field) to SynthesisArtifact objects (with "artifact_type" field)
-            artifacts = []
-            for artifact_data in result.get("synthesis_artifacts", []):
-                artifact = SynthesisArtifact(
-                    artifact_type=artifact_data.get("type"),
-                    description=artifact_data.get("description"),
-                    region=artifact_data.get("region"),
-                    evidence_weight=artifact_data.get("evidence_weight"),
+            artifacts = [
+                SynthesisArtifact(
+                    artifact_type=a.get("artifact_type") or a.get("type"),
+                    description=a.get("description"),
+                    region=a.get("region"),
+                    evidence_weight=a.get("evidence_weight"),
                 )
-                artifacts.append(artifact)
+                for a in result.get("synthesis_artifacts") or []
+            ]
 
             frame_analysis = FrameAnalysis(
                 frame_id=frame_id,
@@ -50,38 +120,69 @@ class GeminiLlmAdapter(LlmPort):
                 confidence_score=result.get("confidence_score", 0.0),
                 synthesis_artifacts=artifacts,
             )
+
+            logger.debug("Frame analysis for '%s': %s", frame_id, frame_analysis)
             return frame_analysis
+
         except Exception as e:
-            logger.error(f"Error generating frame analysis: {str(e)}", exc_info=True)
-            return FrameAnalysis(frame_id="unknown", is_authentic=False, confidence_score=0.0, synthesis_artifacts=[])
-        
-        
-    def get_visual_evidence(self, analyses: list[FrameAnalysis]) -> list:
-        """
-        Stage 2 Forensic LLM Call: Extracts synthesis artifacts 
-        (lighting, anatomy) and affected regions to justify an anomalous verdict.
-        """
+            logger.error(
+                f"Error generating frame analysis for frame '{frame_id}': {e}",
+                exc_info=True,
+            )
+            return FrameAnalysis(
+                frame_id=frame_id,
+                is_authentic=False,
+                confidence_score=0.0,
+                synthesis_artifacts=[],
+            )
+
+    def get_visual_evidence(self, analyses: list[FrameAnalysis]) -> list[SynthesisArtifact]:
         try:
-            # Filter for anomalous or suspicious frames to optimize token usage
             suspicious_frames = [f for f in analyses if f.confidence_score < -0.5]
             if not suspicious_frames:
                 logger.info("No suspicious frames found for forensic extraction.")
                 return []
-                
-            # Construct a dynamic prompt referencing the specific failed frames
+
             forensic_prompt = (
                 f"Analyze these {len(suspicious_frames)} flagged frames for structural anomalies. "
                 "Identify visual artifact types (e.g., lighting mismatch, anatomical inconsistencies), "
-                "provide a detailed text description, and isolate the coordinates via [ymin, xmin, ymax, xmax]."
+                "provide a detailed text description, and isolate the region coordinates via [x1, y1, x2, y2]."
             )
-            
-            response = self.llm_client.generate(forensic_prompt)
-            artifacts = response.get("artifacts", [])
-            
-            logger.info(f"Successfully extracted {len(artifacts)} forensic artifacts.")
+
+            envelope_schema = {
+                "type": "object",
+                "properties": {
+                    "artifacts": {
+                        "type": "array",
+                        "items": SynthesisArtifact.model_json_schema(),
+                    }
+                },
+                "required": ["artifacts"],
+            }
+
+            response = self.llm_client.models.generate_content(
+                model=self.model_name,
+                contents=forensic_prompt,  # No image needed here
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=envelope_schema,
+                ),
+            )
+
+            result = self._parse_response(response)
+            artifacts = [
+                SynthesisArtifact(
+                    artifact_type=a.get("artifact_type") or a.get("type"),
+                    description=a.get("description"),
+                    region=a.get("region"),
+                    evidence_weight=a.get("evidence_weight"),
+                )
+                for a in result.get("artifacts", [])
+            ]
+
+            logger.info(f"Extracted {len(artifacts)} forensic artifacts.")
             return artifacts
 
         except Exception as e:
-            # Fault Tolerance: Return empty array so application service degrades gracefully
-            logger.error(f"Error generating forensic artifact summary: {str(e)}", exc_info=True)
+            logger.error(f"Error generating forensic artifact summary: {e}", exc_info=True)
             return []
