@@ -5,15 +5,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class FrameAnalysisPrompt:
     """Class to store prompts for frame analysis based on extracted video data."""
-    
+
     # Load images with fallback - only if they exist
     image_1 = None
     image_2 = None
     image_3 = None
     image_4 = None
-    
+
     @classmethod
     def _load_sample_images(cls):
         """Lazy load sample images if they exist."""
@@ -27,7 +28,7 @@ class FrameAnalysisPrompt:
                     cls.image_4 = load_image(str(sample_dir / "ai2.jpg"))
                 except Exception as e:
                     logger.warning(f"Could not load sample images: {e}")
-    
+
     SYSTEM_PROMPT = """# ROLE: FORENSIC AI IMAGE DETECTION SYSTEM
 
 You are an expert forensic analysis system specialized in distinguishing authentic photographic imagery from AI-generated synthetic imagery in video frames.
