@@ -1,4 +1,10 @@
-from src.domain.models.analysis import VideoExtractionData,VideoAnalysisResult,FrameAnalysis, VideoMetrics, ExtractedFrame
+from src.domain.models.analysis import (
+    VideoExtractionData,
+    VideoAnalysisResult,
+    FrameAnalysis,
+    VideoMetrics,
+    ExtractedFrame,
+)
 from src.application.prompts.frame_analysis_prompt import FrameAnalysisPrompt
 from src.ports.output.llm_port import LlmPort
 import logging
@@ -23,7 +29,9 @@ class FrameAnalysisService:
         frames = video_extraction_data.extracted_frames
 
         for frame in frames:
-            logger.info(f"Analyzing frame {frame.frame_id} for video {video_extraction_data.video_id}")
+            logger.info(
+                f"Analyzing frame {frame.frame_id} for video {video_extraction_data.video_id}"
+            )
             try:
                 # Load the frame image
                 image_data = load_image(frame.frame_file_path)
@@ -33,16 +41,30 @@ class FrameAnalysisService:
                 prompt = FrameAnalysisPrompt.SYSTEM_PROMPT
 
                 # Call the LLM port to get the analysis result for the frame
-                result = await self.llm_port.generate_frame_analysis(prompt, image_data, frame.frame_id)
+                result = await self.llm_port.generate_frame_analysis(
+                    prompt, image_data, frame.frame_id
+                )
                 frame_analysis = FrameAnalysis(
                     frame_id=frame.frame_id,
                     is_authentic=result.is_authentic,
                     confidence_score=result.confidence_score,
-                    synthesis_artifacts=result.synthesis_artifacts)
+                    synthesis_artifacts=result.synthesis_artifacts,
+                )
                 all_results.append(frame_analysis)
-                
+
             except Exception as e:
-                logger.error(f"Error analyzing frame {frame.frame_id}: {str(e)}", exc_info=True)
-                all_results.append(FrameAnalysis(frame_id=frame.frame_id, is_authentic=False, confidence_score=0.0, synthesis_artifacts=[]))
-            
-        return VideoAnalysisResult(video_id=video_extraction_data.video_id, frame_analyses=all_results)
+                logger.error(
+                    f"Error analyzing frame {frame.frame_id}: {str(e)}", exc_info=True
+                )
+                all_results.append(
+                    FrameAnalysis(
+                        frame_id=frame.frame_id,
+                        is_authentic=False,
+                        confidence_score=0.0,
+                        synthesis_artifacts=[],
+                    )
+                )
+
+        return VideoAnalysisResult(
+            video_id=video_extraction_data.video_id, frame_analyses=all_results
+        )
