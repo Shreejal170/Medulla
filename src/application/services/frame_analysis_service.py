@@ -24,31 +24,13 @@ class FrameAnalysisService:
         all_results = []
 
         frames = video_extraction_data.get('extracted_frames')
-<<<<<<< HEAD
-        print(frames)
         for frame in frames:
 
-
-=======
-        for frame in frames:
-
->>>>>>> dev
             logger.info(
                 f"Analyzing frame {frame.get('frame_id')} for video {video_extraction_data.get('video_id')}"
             )
-
-<<<<<<< HEAD
-            print("*"*20)
-            print("Debugging")
-            print(type(frame))
-            print(frame)
-            
-            try:
-                # Load the frame image using .get()
-=======
             try:
                 # Load the frame image
->>>>>>> dev
                 image_data = load_image(frame.get('frame_file_path'))
 
                 # Build a plain-text prompt string for the Gemini adapter
@@ -62,23 +44,10 @@ class FrameAnalysisService:
                 result = await self.llm_port.generate_frame_analysis(
                     prompt, image_data, frame.get('frame_id')
                 )
-<<<<<<< HEAD
-                
-                frame_analysis = FrameAnalysis(
-                    frame_id=frame.get('frame_id'),
-                    is_authentic=result.get('is_authentic'),
-                    confidence_score=result.get('confidence_score'),
-                    synthesis_artifacts=result.get('synthesis_artifacts'),
-                )
-                all_results.append(frame_analysis)
-                print(all_results)
-
-=======
 
                 # result is already a FrameAnalysis object; use it directly
                 all_results.append(result)
                 logger.info(f"Frame {frame.get('frame_id')} analysed: authentic={result.is_authentic}")
->>>>>>> dev
 
             except Exception as e:
                 logger.error(
@@ -95,13 +64,7 @@ class FrameAnalysisService:
             
             break
 
-<<<<<<< HEAD
-            return VideoAnalysisResult(
-                video_id=video_extraction_data.get('video_id'), frame_analyses=all_results
-            )
-=======
         # Return AFTER all frames are processed (was incorrectly inside the loop)
         return VideoAnalysisResult(
             video_id=video_extraction_data.get('video_id'), frame_analyses=all_results
         )
->>>>>>> dev
