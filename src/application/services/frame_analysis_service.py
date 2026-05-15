@@ -45,18 +45,23 @@ class FrameAnalysisService:
                 image_data = load_image(frame.get('frame_file_path'))
 
                 # Load sample images and generate the prompt with replacements
-                sample1, sample2 = FrameAnalysisPrompt._load_sample_images()
-                prompt = FrameAnalysisPrompt.get_system_prompt(
-                    image1=sample1,
-                    image2=sample2,
-                    image1_path=FrameAnalysisPrompt.SAMPLE_IMAGE_PATH_1,
-                    image2_path=FrameAnalysisPrompt.SAMPLE_IMAGE_PATH_2,
-                    frame=image_data,
-                )
+                messages = FrameAnalysisPrompt.build_messages()
+                messages[1]["content"].extend([
+                    {
+                        "type": "text",
+                        "text": "Now analyze this frame and return only JSON:"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{image_data}"
+                        }
+                    },
+                ])
 
                 # Call the LLM port to get the analysis result for the frame
                 result = await self.llm_port.generate_frame_analysis(
-                    prompt, image_data, frame.get('frame_id')
+                    messages, image_data, frame.get('frame_id')
                 )
                 
                 frame_analysis = FrameAnalysis(
