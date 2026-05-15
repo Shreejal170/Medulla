@@ -81,3 +81,8 @@ temp_frames/
 data/
 
 scripts/
+
+frame_analysis_results.json
+src/application/prompts/summarize_prompt.py
+src/dummy_video_data.json
+src/utils/sample_images/
