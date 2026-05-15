@@ -22,7 +22,7 @@ class FrameAnalysisService:
     def __init__(self, llm_port):
         self.llm_port = llm_port
 
-    async def analyze_frame(self, video_extraction_data):
+    async def analyze_frame(self, video_extraction_data:VideoExtractionData) -> VideoAnalysisResult:
         """Analyzes the extracted frames from the video using the LLM port and returns the analysis results."""
         all_results = []
 
@@ -33,12 +33,18 @@ class FrameAnalysisService:
                 f"Analyzing frame {frame.frame_id} for video {video_extraction_data.video_id}"
             )
             try:
-                # Load the frame image
+                # Load the frame image (synchronous base64 string)
                 image_data = load_image(frame.frame_file_path)
 
-                # Generate the prompt for the LLM
-                load_images = FrameAnalysisPrompt._load_sample_images()
-                prompt = FrameAnalysisPrompt.SYSTEM_PROMPT
+                # Load sample images and generate the prompt with replacements
+                sample1, sample2 = FrameAnalysisPrompt._load_sample_images()
+                prompt = FrameAnalysisPrompt.get_system_prompt(
+                    image1=sample1,
+                    image2=sample2,
+                    image1_path=FrameAnalysisPrompt.SAMPLE_IMAGE_PATH_1,
+                    image2_path=FrameAnalysisPrompt.SAMPLE_IMAGE_PATH_2,
+                    frame=image_data,
+                )
 
                 # Call the LLM port to get the analysis result for the frame
                 result = await self.llm_port.generate_frame_analysis(
