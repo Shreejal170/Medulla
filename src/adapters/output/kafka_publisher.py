@@ -40,7 +40,8 @@ class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
             
             logger.info("Producer Started.")
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Failed to start Kafka producer: {e}", exc_info=True)
+            raise
     
 
     # *******
@@ -49,6 +50,9 @@ class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
         Gracefully shuts down the producer. 
         Must be called during application shutdown to prevent memory leaks.
         """
+        if self.producer is None:
+            return
+
         logger.info("Flushing remaining messages to Kafka...")
         self.producer.flush(timeout=5.0)
         logger.info("Kafka Producer stopped.")
@@ -58,6 +62,9 @@ class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
         """
         Serializes and publishes a Pydantic model to Kafka.
         """
+        if self.producer is None:
+            raise RuntimeError("Kafka producer has not been started. Call start() before publish().")
+
         def delivery_report(err, msg):
             if err is not None:
                 logger.error(f"Message delivery failed to {msg.topic()}: {err}")
