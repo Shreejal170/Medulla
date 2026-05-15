@@ -1,10 +1,12 @@
 import logging
 from typing import List
 from src.application.services.decision_engine import run_decision_engine, VerdictStatus
+from src.core.logging_config import setup_logging
 from src.domain.models.analysis import VideoMetrics, FrameAnalysis
 from src.domain.models.output import VideoAnalysisResult
 from src.ports.output.llm_port import LlmPort
 
+setup_logging()
 logger = logging.getLogger(__name__)
 
 class VideoAnalysisService:
