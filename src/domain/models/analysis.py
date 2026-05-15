@@ -65,6 +65,80 @@ class VideoExtractionData(BaseModel):
         """Computed property to get the total number of extracted frames."""
         return len(self.extracted_frames)
 
+
+class ExtractedAudioChunk(BaseModel):
+    """Model representing an extracted and processed audio chunk with spectrogram."""
+    chunk_id: Annotated[
+        str,
+        Field(
+            description="The unique identifier for the audio chunk.",
+            examples=["chunk_000", "chunk_001"],
+        ),
+    ]
+    audio_chunk_path: Annotated[
+        str,
+        Field(
+            description="The file path where the audio chunk is stored.",
+            examples=["/path/to/chunk_000.wav"],
+        ),
+    ]
+    spectrogram_image_path: Annotated[
+        str,
+        Field(
+            description="The file path where the spectrogram image for this chunk is stored.",
+            examples=["/path/to/chunk_000_spectrogram.png"],
+        ),
+    ]
+    start_sec: Annotated[
+        float,
+        Field(
+            description="The start timestamp of this chunk in seconds.",
+            examples=[0.0, 5.0, 10.0],
+        ),
+    ]
+    end_sec: Annotated[
+        float,
+        Field(
+            description="The end timestamp of this chunk in seconds.",
+            examples=[5.0, 10.0, 15.0],
+        ),
+    ]
+
+
+class AudioExtractionData(BaseModel):
+    """Model representing the audio extracted from a video with chunk and spectrogram metadata."""
+    video_id: Annotated[
+        str,
+        Field(
+            description="The unique identifier for the video.",
+            examples=["video_123"],
+        ),
+    ]
+    extracted_audio_chunks: Annotated[
+        List[ExtractedAudioChunk],
+        Field(
+            description="A list of audio chunks extracted from the video with spectrogram paths.",
+            examples=[
+                [
+                    {
+                        "chunk_id": "chunk_000",
+                        "audio_chunk_path": "/path/to/chunk_000.wav",
+                        "spectrogram_image_path": "/path/to/chunk_000_spectrogram.png",
+                        "start_sec": 0.0,
+                        "end_sec": 5.0,
+                    }
+                ]
+            ],
+        ),
+    ]
+
+    @computed_field
+    @property
+    def total_audio_chunks(self) -> int:
+        """Computed property to get the total number of extracted audio chunks."""
+        return len(self.extracted_audio_chunks)
+
+
 class SynthesisArtifact(BaseModel):
     """Model representing a detected synthesis artifact in a frame."""
 
