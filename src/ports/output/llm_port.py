@@ -11,3 +11,8 @@ class LlmPort(ABC):
     ) -> FrameAnalysis:
         """Generates analysis results for a single frame based on the provided data."""
         pass
+
+    @abstractmethod
+    def get_visual_evidence(self, analyses: list[FrameAnalysis]) -> list:
+        """Stage 2: Generates qualitative forensic artifacts for suspicious frames."""
+        pass
