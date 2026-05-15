@@ -105,6 +105,10 @@ async def orchestrate_analytics():
 
 
 
+    await publisher.start()
+
+
+
     frames_topic = os.getenv("KAFKA_FRAMES_TOPIC", "frames-ready-for-ai")
 
     results_topic = os.getenv("KAFKA_RESULTS_TOPIC", "frame-analysis-results")
@@ -188,15 +192,6 @@ async def orchestrate_analytics():
         except Exception as e:
 
             logger.error(f"Error processing message: {str(e)}", exc_info=True)
-
-
-
-
-
-    # await publisher.start()
-
-
-
 
 
     video_id = os.getenv("TEST_VIDEO_ID", "test_video_001")
