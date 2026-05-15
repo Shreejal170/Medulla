@@ -16,7 +16,7 @@ from PIL import Image
 
 from src.domain.models.analysis import ExtractedFrame, VideoExtractionData
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("ffmpeg helper")
 
 # Constants
 MAX_DIMENSION = 512

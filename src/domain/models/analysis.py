@@ -110,41 +110,12 @@ class FrameAnalysis(BaseModel):
     synthesis_artifacts: Optional[Annotated[List[SynthesisArtifact], Field(description="A list of detected synthesis artifacts in the frame, if any.", examples=[[{"artifact_type": "artifact1", "description": "description"}]])]] = []
 
 class VideoAnalysisResult(BaseModel):
+
     """Model representing the overall analysis results for a video."""
-    frame_id: Annotated[
-        str,
-        Field(
-            description="The unique identifier for the analyzed frame.",
-            examples=["frame_0001"],
-        ),
-    ]
-    is_authentic: Annotated[
-        bool,
-        Field(
-            description="Indicates whether the frame is authentic or not.",
-            examples=[True],
-        ),
-    ]
-    confidence_score: Annotated[
-        float,
-        Field(
-            description="The confidence score of the authenticity prediction for the frame.",
-            examples=[0.95],
-        ),
-    ]
-    synthesis_artifacts: Optional[
-        Annotated[
-            List[SynthesisArtifact],
-            Field(
-                description="A list of detected synthesis artifacts in the frame, if any.",
-                examples=[
-                    [{"artifact_type": "artifact1", "description": "description"}]
-                ],
-            ),
-        ]
-    ] = []
 
+    video_id: Annotated[str,Field(description="Id of the associated video.")]
 
+    frame_analyses : Annotated[List[FrameAnalysis],Field(description = "List of frames analyzed by the llm.")]
 
 class VideoMetrics(BaseModel):
     """Model representing the overall metrics for the video analysis."""

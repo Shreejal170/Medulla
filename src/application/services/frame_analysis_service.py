@@ -19,22 +19,30 @@ logger = logging.getLogger(__name__)
 class FrameAnalysisService:
     """Service class to handle the analysis of video frames using the LLM port."""
 
-    def __init__(self, llm_port):
-        self.llm_port = llm_port
+    def __init__(self, LlmPort):
+        self.llm_port = LlmPort
 
     async def analyze_frame(self, video_extraction_data):
         """Analyzes the extracted frames from the video using the LLM port and returns the analysis results."""
         all_results = []
 
-        frames = video_extraction_data.extracted_frames
-
+        frames = video_extraction_data.get('extracted_frames')
+        print(frames)
         for frame in frames:
+
+
             logger.info(
-                f"Analyzing frame {frame.frame_id} for video {video_extraction_data.video_id}"
+                f"Analyzing frame {frame.get('frame_id')} for video {video_extraction_data.get('video_id')}"
             )
+
+            print("*"*20)
+            print("Debugging")
+            print(type(frame))
+            print(frame)
+            
             try:
-                # Load the frame image
-                image_data = load_image(frame.frame_file_path)
+                # Load the frame image using .get()
+                image_data = load_image(frame.get('frame_file_path'))
 
                 # Generate the prompt for the LLM
                 load_images = FrameAnalysisPrompt._load_sample_images()
@@ -42,15 +50,18 @@ class FrameAnalysisService:
 
                 # Call the LLM port to get the analysis result for the frame
                 result = await self.llm_port.generate_frame_analysis(
-                    prompt, image_data, frame.frame_id
+                    prompt, image_data, frame.get('frame_id')
                 )
+                
                 frame_analysis = FrameAnalysis(
-                    frame_id=frame.frame_id,
-                    is_authentic=result.is_authentic,
-                    confidence_score=result.confidence_score,
-                    synthesis_artifacts=result.synthesis_artifacts,
+                    frame_id=frame.get('frame_id'),
+                    is_authentic=result.get('is_authentic'),
+                    confidence_score=result.get('confidence_score'),
+                    synthesis_artifacts=result.get('synthesis_artifacts'),
                 )
                 all_results.append(frame_analysis)
+                print(all_results)
+
 
             except Exception as e:
                 logger.error(
@@ -65,6 +76,6 @@ class FrameAnalysisService:
                     )
                 )
 
-        return VideoAnalysisResult(
-            video_id=video_extraction_data.video_id, frame_analyses=all_results
-        )
+            return VideoAnalysisResult(
+                video_id=video_extraction_data.get('video_id'), frame_analyses=all_results
+            )
