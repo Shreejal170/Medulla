@@ -1,98 +1,128 @@
-from dataclasses import dataclass
-from enum import Enum
+import logging
 from typing import Callable, Optional
+
+from src.core.logging_config import setup_logging
 from src.domain.models.analysis import VideoMetrics
 from src.domain.models.output import VideoAnalysisResult
-from src.core.logging_config import get_logger
+from src.domain.models.rule_context import RuleContext
+from src.domain.models.verdict import Verdict, VerdictStatus
 
-logger = get_logger(__name__)
+setup_logging()
 
-# Minimum frames required for Rule 2 to produce a medium/high verdict.
-# Below this count, authentic signal is treated as insufficient evidence.
+logger = logging.getLogger(__name__)
+
+# Minimum number of valid frames required
+# before producing a strong authentic verdict.
 MIN_FRAMES_FOR_STRONG_VERDICT = 5
 
 
-# ── Verdict status ─────────────────────────────────────────────────
-
-class VerdictStatus(str, Enum):
-    """
-    Explicit status attached to every verdict produced by the rule registry.
-    
-    AI_GENERATED: Video is synthetic. Rules 1 or 3 (negative) fired.
-    AUTHENTIC:    Video is real. Rules 2 or 3 (positive) fired.
-    INCONCLUSIVE: No rule produced a confident verdict. Manual review needed.
-    """
-    AI_GENERATED = "ai_generated"
-    AUTHENTIC    = "authentic"
-    INCONCLUSIVE = "inconclusive"
-
-
-# ── Intermediate verdict ───────────────────────────────────────────
-
-@dataclass
-class Verdict:
-    """
-    Intermediate result produced by a single rule function.
-    Explanation focuses strictly on mathematical justification.
-    """
-    status: VerdictStatus
-    is_authentic: bool
-    confidence: str
-    explanation: str
-    error: Optional[str] = None
-
-
-# ── Rule context ───────────────────────────────────────────────────
-
-@dataclass
-class RuleContext:
-    """
-    Immutable bundle of pre-computed values. artifact_summary removed 
-    to decouple forensic text from pure decision logic.
-    """
-    video_id: str
-    metrics: VideoMetrics
-    ai_pct: float
-    auth_pct: float
-
-
+# Type alias for decision rule functions
 RuleFn = Callable[[RuleContext], Optional[Verdict]]
 
 
-# ── Individual rules (Priority Execution) ──────────────────────────
-
 def rule_strong_ai(ctx: RuleContext) -> Optional[Verdict]:
-    """Rule 1 — Strong AI signal (>= 70% AI frames)."""
+    """
+    Determines whether the video shows a strong AI-generated signal.
+
+    Rule:
+        - If AI-generated frames >= 70%, classify as AI-generated.
+
+    Confidence:
+        - High: >= 80% AI frames
+        - Medium: 70%–79% AI frames
+
+    Args:
+        ctx (RuleContext):
+            Precomputed context object containing frame metrics.
+
+    Returns:
+        Optional[Verdict]:
+            Verdict object if rule matches,
+            otherwise None.
+    """
+
     if ctx.ai_pct < 0.70:
         return None
 
     confidence = "high" if ctx.ai_pct >= 0.80 else "medium"
+
     return Verdict(
         status=VerdictStatus.AI_GENERATED,
         is_authentic=False,
         confidence=confidence,
-        explanation=f"AI-generated ({confidence} confidence). {ctx.ai_pct:.0%} of frames flagged as synthetic."
+        explanation=(
+            f"AI-generated ({confidence} confidence). "
+            f"{ctx.ai_pct:.0%} of frames flagged as synthetic."
+        ),
     )
 
 
 def rule_strong_authentic(ctx: RuleContext) -> Optional[Verdict]:
-    """Rule 2 — Strong authentic signal (>= 30% authentic, AI < 70%)."""
+    """
+    Determines whether the video shows a strong authentic signal.
+
+    Rule:
+        - Authentic frames >= 30%
+        - AI-generated frames < 70%
+        - Minimum frame count satisfied
+
+    Confidence:
+        - High: >= 50% authentic frames
+        - Medium: 30%–49% authentic frames
+
+    Args:
+        ctx (RuleContext):
+            Precomputed context object containing frame metrics.
+
+    Returns:
+        Optional[Verdict]:
+            Verdict object if rule matches,
+            otherwise None.
+    """
+
     total = ctx.metrics.total_valid_frames
 
-    if total < MIN_FRAMES_FOR_STRONG_VERDICT or ctx.auth_pct < 0.30 or ctx.ai_pct >= 0.70:
+    if (
+        total < MIN_FRAMES_FOR_STRONG_VERDICT
+        or ctx.auth_pct < 0.30
+        or ctx.ai_pct >= 0.70
+    ):
         return None
 
     confidence = "high" if ctx.auth_pct >= 0.50 else "medium"
+
     return Verdict(
         status=VerdictStatus.AUTHENTIC,
         is_authentic=True,
         confidence=confidence,
-        explanation=f"Authentic ({confidence} confidence). {ctx.auth_pct:.0%} of frames verified as authentic."
+        explanation=(
+            f"Authentic ({confidence} confidence). "
+            f"{ctx.auth_pct:.0%} of frames verified as authentic."
+        ),
     )
 
 
 def rule_avg_confidence_fallback(ctx: RuleContext) -> Optional[Verdict]:
-    """Rule 3 — Fallback for values outside the neutral band (±0.5)."""
+    """
+    Applies fallback logic using average confidence score.
+
+    Rule:
+        - Average confidence > +0.5 → Authentic
+        - Average confidence < -0.5 → AI-generated
+
+    Confidence:
+        - Always low confidence
+
+    Args:
+        ctx (RuleContext):
+            Precomputed context object containing frame metrics.
+
+    Returns:
+        Optional[Verdict]:
+            Verdict object if rule matches,
+            otherwise None.
+    """
+
     avg = ctx.metrics.average_confidence
 
     if avg > 0.5:
@@ -100,7 +130,10 @@ def rule_avg_confidence_fallback(ctx: RuleContext) -> Optional[Verdict]:
             status=VerdictStatus.AUTHENTIC,
             is_authentic=True,
             confidence="low",
-            explanation=f"Authentic (low confidence). Average confidence score: {avg:.2f}."
+            explanation=(
+                f"Authentic (low confidence). "
+                f"Average confidence score: {avg:.2f}."
+            ),
         )
 
     if avg < -0.5:
@@ -108,86 +141,137 @@ def rule_avg_confidence_fallback(ctx: RuleContext) -> Optional[Verdict]:
             status=VerdictStatus.AI_GENERATED,
             is_authentic=False,
             confidence="low",
-            explanation=f"AI-generated (low confidence). Average confidence score: {avg:.2f}."
+            explanation=(
+                f"AI-generated (low confidence). "
+                f"Average confidence score: {avg:.2f}."
+            ),
         )
+
     return None
 
 
 def rule_inconclusive(ctx: RuleContext) -> Optional[Verdict]:
-    """Rule 4 — Guaranteed terminal fallback for mixed signals."""
+    """
+    Produces an inconclusive verdict when no other rule matches.
+
+    This acts as the guaranteed terminal fallback rule.
+
+    Args:
+        ctx (RuleContext):
+            Precomputed context object containing frame metrics.
+
+    Returns:
+        Optional[Verdict]:
+            Inconclusive verdict.
+    """
+
     return Verdict(
         status=VerdictStatus.INCONCLUSIVE,
         is_authentic=False,
         confidence="inconclusive",
-        explanation=f"Inconclusive. Mixed signals across frames (AI: {ctx.ai_pct:.0%}, Auth: {ctx.auth_pct:.0%}).",
-        error="Inconclusive — manual review required."
+        explanation=(
+            f"Inconclusive. Mixed signals across frames "
+            f"(AI: {ctx.ai_pct:.0%}, Auth: {ctx.auth_pct:.0%})."
+        ),
+        error="Inconclusive — manual review required.",
     )
 
 
-# ── Rule registry (Ordered by Priority) ───────────────────────────
-
+# Ordered rule registry
 RULES: list[RuleFn] = [
-    rule_strong_ai,               # Rule 1
-    rule_strong_authentic,        # Rule 2
-    rule_avg_confidence_fallback, # Rule 3
-    rule_inconclusive,            # Rule 4
+    rule_strong_ai,
+    rule_strong_authentic,
+    rule_avg_confidence_fallback,
+    rule_inconclusive,
 ]
 
 
-# ── Engine entry point (Defensive & Fault-Tolerant) ────────────────
-
 def run_decision_engine(
     video_id: str,
-    metrics: VideoMetrics
+    metrics: VideoMetrics,
 ) -> tuple[VideoAnalysisResult, VideoMetrics]:
     """
-    Evaluates video metrics against the rule registry.
-    Returns structured results and updated metrics for downstream services.
+    Executes the deterministic decision engine.
+
+    The engine evaluates frame-level metrics against
+    a priority-based rule registry to produce
+    a final video authenticity verdict.
+
+    Args:
+        video_id (str):
+            Unique identifier of the analyzed video.
+
+        metrics (VideoMetrics):
+            Aggregated metrics derived from frame analyses.
+
+    Returns:
+        tuple[VideoAnalysisResult, VideoMetrics]:
+            A tuple containing:
+                1. Final structured analysis result.
+                2. Updated metrics object.
     """
+
     logger.info("[%s] Decision engine started", video_id)
 
-    # Guard — Graceful degradation for zero-frame scenarios
+    # Guard clause for empty frame sets
     if metrics.total_valid_frames == 0:
         err_msg = "Zero valid frames after processing."
+
         metrics.analsysis_summary = err_msg
-        return VideoAnalysisResult(
-            video_id=video_id,
-            is_authentic=False,
-            explanation=err_msg,
-            error=err_msg
-        ), metrics
+
+        return (
+            VideoAnalysisResult(
+                video_id=video_id,
+                is_authentic=False,
+                explanation=err_msg,
+                error=err_msg,
+            ),
+            metrics,
+        )
 
     try:
         total = metrics.total_valid_frames
+
         ctx = RuleContext(
             video_id=video_id,
             metrics=metrics,
             ai_pct=metrics.ai_frame_count / total,
-            auth_pct=metrics.authentic_frame_count / total
+            auth_pct=metrics.authentic_frame_count / total,
         )
 
-        # Priority execution: Stop at the first rule that fires
-        verdict = next(v for rule in RULES if (v := rule(ctx)) is not None)
+        # Execute rules by priority order
+        verdict = next(
+            v for rule in RULES
+            if (v := rule(ctx)) is not None
+        )
 
-        # Populate structured metadata for the metrics object
         metrics.analsysis_summary = (
-            f"{verdict.explanation} | Status: {verdict.status} | Confidence: {verdict.confidence}"
+            f"{verdict.explanation} | "
+            f"Status: {verdict.status} | "
+            f"Confidence: {verdict.confidence}"
         )
 
-        return VideoAnalysisResult(
-            video_id=video_id,
-            is_authentic=verdict.is_authentic,
-            explanation=verdict.explanation,
-            error=verdict.error
-        ), metrics
+        return (
+            VideoAnalysisResult(
+                video_id=video_id,
+                is_authentic=verdict.is_authentic,
+                explanation=verdict.explanation,
+                error=verdict.error,
+            ),
+            metrics,
+        )
 
     except Exception as e:
-        # Non-crashing pipeline: Return safe failure state
         logger.error("[%s] Unexpected engine error: %s", video_id, e)
+
         fail_msg = "Decision engine encountered an unexpected error."
-        return VideoAnalysisResult(
-            video_id=video_id,
-            is_authentic=False,
-            explanation=fail_msg,
-            error=str(e)
-        ), metrics
+
+        return (
+            VideoAnalysisResult(
+                video_id=video_id,
+                is_authentic=False,
+                explanation=fail_msg,
+                error=str(e),
+            ),
+            metrics,
+        )
