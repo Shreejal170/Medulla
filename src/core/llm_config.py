@@ -11,10 +11,6 @@ class LLMSettings(BaseSettings):
     # Pydantic makes this strictly required by default.
     # If it is missing from the .env, the app will safely crash on startup.
     google_gemini_api_key: str
-<<<<<<< HEAD
-=======
-    deepseek_api_key: str
->>>>>>> dev
 
     model_config = SettingsConfigDict(
         env_file=".env",
