@@ -78,6 +78,9 @@ sample_images/
 # Temp files
 temp_frames/
 *.mp4
+temp_audio/
+temp_audio_chunks/
+temp_spectrograms/
 
 data/
 
