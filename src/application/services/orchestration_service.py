@@ -22,7 +22,7 @@ from src.adapters.output.kafka_publisher import ConfluentKafkaPublisherAdapter
 
 from src.application.services.frame_analysis_service import FrameAnalysisService
 
-from src.application.services.video_ingestion import VideoIngestionService
+# from src.application.services.video_ingestion import VideoIngestionService
 
 from src.core.logging_config import setup_logging
 

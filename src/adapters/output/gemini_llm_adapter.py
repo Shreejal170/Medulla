@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class GeminiLlmAdapter(LlmPort):
     """Adapter class to integrate with the Gemini LLM for generating frame analysis results."""
 
-    def __init__(self, llm_client, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, llm_client, model_name: str = "gemini-3.1-flash-lite"):
         self.llm_client = llm_client
         self.model_name = model_name
 

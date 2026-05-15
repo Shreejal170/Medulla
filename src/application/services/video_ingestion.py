@@ -1,13 +1,13 @@
 import logging
 from src.ports.output.message_publisher import MessagePublisherPort
-from src.domain.models.analysis import VideoExtractionData
+# from src.domain.models.analysis import VideoExtractionData
 
 # ffmpeg_helper for extracting frames
 from src.utils import ffmpeg_helper
 
 logger = logging.getLogger(__name__)
 
-class VideoIngestionService:
+class VideoExtractionAndIngestionService:
     """
     Application service that orchestrates the video ingestion pipeline.
     Now directly coupled to ffmpeg_helper for extraction.
