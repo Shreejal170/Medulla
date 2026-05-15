@@ -112,8 +112,14 @@ class FrameAnalysis(BaseModel):
 class VideoAnalysisResult(BaseModel):
 
     """Model representing the overall analysis results for a video."""
+<<<<<<< HEAD
 
     video_id: Annotated[str,Field(description="Id of the associated video.")]
+
+=======
+
+    video_id: Annotated[str,Field(description="Id of the associated video.")]
+>>>>>>> dev
     frame_analyses : Annotated[List[FrameAnalysis],Field(description = "List of frames analyzed by the llm.")]
 
 class VideoMetrics(BaseModel):

@@ -2,10 +2,7 @@ from src.domain.models.analysis import (
     VideoExtractionData,
     VideoAnalysisResult,
     FrameAnalysis,
-    VideoMetrics,
-    ExtractedFrame,
 )
-from src.application.prompts.frame_analysis_prompt import FrameAnalysisPrompt
 from src.ports.output.llm_port import LlmPort
 import logging
 from src.utils.image_loader import load_image
@@ -22,19 +19,25 @@ class FrameAnalysisService:
     def __init__(self, LlmPort):
         self.llm_port = LlmPort
 
-    async def analyze_frame(self, video_extraction_data:VideoExtractionData) -> VideoAnalysisResult:
+    async def analyze_frame(self, video_extraction_data: VideoExtractionData) -> VideoAnalysisResult:
         """Analyzes the extracted frames from the video using the LLM port and returns the analysis results."""
         all_results = []
 
         frames = video_extraction_data.get('extracted_frames')
+<<<<<<< HEAD
         print(frames)
         for frame in frames:
 
 
+=======
+        for frame in frames:
+
+>>>>>>> dev
             logger.info(
                 f"Analyzing frame {frame.get('frame_id')} for video {video_extraction_data.get('video_id')}"
             )
 
+<<<<<<< HEAD
             print("*"*20)
             print("Debugging")
             print(type(frame))
@@ -42,27 +45,24 @@ class FrameAnalysisService:
             
             try:
                 # Load the frame image using .get()
+=======
+            try:
+                # Load the frame image
+>>>>>>> dev
                 image_data = load_image(frame.get('frame_file_path'))
 
-                # Load sample images and generate the prompt with replacements
-                messages = FrameAnalysisPrompt.build_messages()
-                messages[1]["content"].extend([
-                    {
-                        "type": "text",
-                        "text": "Now analyze this frame and return only JSON:"
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{image_data}"
-                        }
-                    },
-                ])
-
-                # Call the LLM port to get the analysis result for the frame
-                result = await self.llm_port.generate_frame_analysis(
-                    messages, image_data, frame.get('frame_id')
+                # Build a plain-text prompt string for the Gemini adapter
+                prompt = (
+                    "You are an expert forensic AI image analyst.\n"
+                    "Analyze the provided frame and return ONLY valid JSON with keys: "
+                    "is_authentic (bool), confidence_score (float), synthesis_artifacts (list)."
                 )
+
+                # Call the LLM port — returns a FrameAnalysis object directly
+                result = await self.llm_port.generate_frame_analysis(
+                    prompt, image_data, frame.get('frame_id')
+                )
+<<<<<<< HEAD
                 
                 frame_analysis = FrameAnalysis(
                     frame_id=frame.get('frame_id'),
@@ -73,20 +73,35 @@ class FrameAnalysisService:
                 all_results.append(frame_analysis)
                 print(all_results)
 
+=======
+
+                # result is already a FrameAnalysis object; use it directly
+                all_results.append(result)
+                logger.info(f"Frame {frame.get('frame_id')} analysed: authentic={result.is_authentic}")
+>>>>>>> dev
 
             except Exception as e:
                 logger.error(
-                    f"Error analyzing frame {frame.frame_id}: {str(e)}", exc_info=True
+                    f"Error analyzing frame {frame.get('frame_id')}: {str(e)}", exc_info=True
                 )
                 all_results.append(
                     FrameAnalysis(
-                        frame_id=frame.frame_id,
+                        frame_id=frame.get('frame_id'),
                         is_authentic=False,
                         confidence_score=0.0,
                         synthesis_artifacts=[],
                     )
                 )
+            
+            break
 
+<<<<<<< HEAD
             return VideoAnalysisResult(
                 video_id=video_extraction_data.get('video_id'), frame_analyses=all_results
             )
+=======
+        # Return AFTER all frames are processed (was incorrectly inside the loop)
+        return VideoAnalysisResult(
+            video_id=video_extraction_data.get('video_id'), frame_analyses=all_results
+        )
+>>>>>>> dev
