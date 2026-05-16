@@ -3,7 +3,13 @@ from typing import List, Optional, Annotated
 
 
 class ExtractedFrame(BaseModel):
-    """Model representing an extracted frame from a video."""
+    """Model representing an extracted frame from a video.
+    Attrs:
+    frame_id: The unique identifier for the extracted frame.
+    frame_file_path: The file path where the extracted frame is stored.
+    timestamp_sec: The timestamp in seconds corresponding to the extracted frame.
+    """
+
     frame_id: Annotated[
         str,
         Field(
@@ -28,7 +34,14 @@ class ExtractedFrame(BaseModel):
 
 
 class VideoExtractionData(BaseModel):
-    """Model representing the data extracted from the video for downstream analysis."""
+    """Model representing the data extracted from the video for downstream analysis.
+
+    Attrs:
+    video_id: The unique identifier for the video.
+    extracted_frames: A list of frames extracted from the video for analysis.
+    audio_path: The file path where the extracted audio is stored (optional).
+    """
+
     video_id: Annotated[
         str,
         Field(
@@ -59,14 +72,22 @@ class VideoExtractionData(BaseModel):
             ),
         ]
     ] = None
+
     @computed_field
     @property
     def total_frames(self) -> int:
         """Computed property to get the total number of extracted frames."""
         return len(self.extracted_frames)
 
+
 class SynthesisArtifact(BaseModel):
-    """Model representing a detected synthesis artifact in a frame."""
+    """Model representing a detected synthesis artifact in a frame.
+    Attrs:
+    artifact_type: The type of synthesis artifact detected.
+    description: A brief description of the detected artifact.
+    region: The coordinates of the region in the frame where the artifact was detected.
+    evidence_weight: The weight of the evidence for this artifact in contributing to the authenticity prediction.
+    """
 
     artifact_type: Annotated[
         str,
@@ -103,21 +124,71 @@ class SynthesisArtifact(BaseModel):
 
 
 class FrameAnalysis(BaseModel):
-    """Model representing the analysis results for a single extracted frame."""
-    frame_id: Annotated[str, Field(description="The unique identifier for the analyzed frame.", examples=["frame_0001","frame_0002"])]
-    is_authentic: Annotated[bool, Field(description="Indicates whether the frame is authentic or not.", examples=[True])]
-    confidence_score: Annotated[float, Field(description="The confidence score of the authenticity prediction for the frame.", examples=[0.95])]
-    synthesis_artifacts: Optional[Annotated[List[SynthesisArtifact], Field(description="A list of detected synthesis artifacts in the frame, if any.", examples=[[{"artifact_type": "artifact1", "description": "description"}]])]] = []
+    """Model representing the analysis results for a single extracted frame.
+    Attrs:
+    frame_id: The unique identifier for the analyzed frame.
+    is_authentic: Indicates whether the frame is authentic or not.
+    confidence_score: The confidence score of the authenticity prediction for the frame.
+    synthesis_artifacts: A list of detected synthesis artifacts in the frame, if any.
+    """
+
+    frame_id: Annotated[
+        str,
+        Field(
+            description="The unique identifier for the analyzed frame.",
+            examples=["frame_0001", "frame_0002"],
+        ),
+    ]
+    is_authentic: Annotated[
+        bool,
+        Field(
+            description="Indicates whether the frame is authentic or not.",
+            examples=[True],
+        ),
+    ]
+    confidence_score: Annotated[
+        float,
+        Field(
+            description="The confidence score of the authenticity prediction for the frame.",
+            examples=[0.95],
+        ),
+    ]
+    synthesis_artifacts: Optional[
+        Annotated[
+            List[SynthesisArtifact],
+            Field(
+                description="A list of detected synthesis artifacts in the frame, if any.",
+                examples=[
+                    [{"artifact_type": "artifact1", "description": "description"}]
+                ],
+            ),
+        ]
+    ] = []
+
 
 class VideoAnalysisResult(BaseModel):
+    """Model representing the overall analysis results for a video.
+    Attrs:
+    video_id: The unique identifier for the analyzed video.
+    frame_analyses: A list of frame analysis results.
+    """
 
-    """Model representing the overall analysis results for a video."""
+    video_id: Annotated[str, Field(description="Id of the associated video.")]
+    frame_analyses: Annotated[
+        List[FrameAnalysis], Field(description="List of frames analyzed by the llm.")
+    ]
 
-    video_id: Annotated[str,Field(description="Id of the associated video.")]
-    frame_analyses : Annotated[List[FrameAnalysis],Field(description = "List of frames analyzed by the llm.")]
 
 class VideoMetrics(BaseModel):
-    """Model representing the overall metrics for the video analysis."""
+    """Model representing the overall metrics for the video analysis.
+    Attrs:
+    total_valid_frames: The total number of valid frames analyzed in the video.
+    ai_frame_count: The number of frames identified as AI-generated in the video.
+    authentic_frame_count: The number of frames identified as authentic in the video.
+    uncertain_frame_count: The number of frames for which the authenticity could not be determined.
+    average_confidence: The average confidence score across all analyzed frames in the video.
+    analysis_summary: A concise summary of the overall analysis results for the video, highlighting reasoning for the authenticity predictions.
+    """
 
     total_valid_frames: Annotated[
         int,
