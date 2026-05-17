@@ -14,24 +14,37 @@ logger = logging.getLogger(__name__)
 
 
 class FrameAnalysisService:
-    """Service class to handle the analysis of video frames using the LLM port."""
+    """Service class to handle the analysis of video frames using the LLM port.
+    Attrs:
+        llm_port: An instance of the LlmPort interface to interact with the LLM for frame analysis.
+    """
 
     def __init__(self, LlmPort):
+        """ "Initialize the FrameAnalysisService with the given LLM port.
+        Args:
+            LlmPort: An instance of the LlmPort interface to interact with the LLM for frame analysis.
+        """
         self.llm_port = LlmPort
 
-    async def analyze_frame(self, video_extraction_data: VideoExtractionData) -> VideoAnalysisResult:
-        """Analyzes the extracted frames from the video using the LLM port and returns the analysis results."""
+    async def analyze_frame(
+        self, video_extraction_data: VideoExtractionData
+    ) -> VideoAnalysisResult:
+        """Analyzes the extracted frames from the video using the LLM port and returns the analysis results.
+        Args:
+            video_extraction_data: A VideoExtractionData object containing the extracted frames and related metadata.
+        Returns:
+            A VideoAnalysisResult object containing the analysis results for each frame.
+        """
         all_results = []
 
-        frames = video_extraction_data.get('extracted_frames')
+        frames = video_extraction_data.get("extracted_frames")
         for frame in frames:
-
             logger.info(
                 f"Analyzing frame {frame.get('frame_id')} for video {video_extraction_data.get('video_id')}"
             )
             try:
                 # Load the frame image
-                image_data = load_image(frame.get('frame_file_path'))
+                image_data = load_image(frame.get("frame_file_path"))
 
                 # Build a plain-text prompt string for the Gemini adapter
                 prompt = (
@@ -42,29 +55,32 @@ class FrameAnalysisService:
 
                 # Call the LLM port — returns a FrameAnalysis object directly
                 result = await self.llm_port.generate_frame_analysis(
-                    prompt, image_data, frame.get('frame_id')
+                    prompt, image_data, frame.get("frame_id")
                 )
 
                 # result is already a FrameAnalysis object; use it directly
                 all_results.append(result)
-                logger.info(f"Frame {frame.get('frame_id')} analysed: authentic={result.is_authentic}")
+                logger.info(
+                    f"Frame {frame.get('frame_id')} analysed: authentic={result.is_authentic}"
+                )
 
             except Exception as e:
                 logger.error(
-                    f"Error analyzing frame {frame.get('frame_id')}: {str(e)}", exc_info=True
+                    f"Error analyzing frame {frame.get('frame_id')}: {str(e)}",
+                    exc_info=True,
                 )
                 all_results.append(
                     FrameAnalysis(
-                        frame_id=frame.get('frame_id'),
+                        frame_id=frame.get("frame_id"),
                         is_authentic=False,
                         confidence_score=0.0,
                         synthesis_artifacts=[],
                     )
                 )
-            
-            break
+
+            # break # TEMP: Only analyze the first frame for testing — remove this line to process all frames
 
         # Return AFTER all frames are processed (was incorrectly inside the loop)
         return VideoAnalysisResult(
-            video_id=video_extraction_data.get('video_id'), frame_analyses=all_results
+            video_id=video_extraction_data.get("video_id"), frame_analyses=all_results
         )

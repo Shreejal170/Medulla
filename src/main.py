@@ -36,7 +36,7 @@ async def get_group_id():
     return group_id
 
 async def get_videos_file_path():
-    return r"./data/input_videos/mp_.mp4"
+    return r"./src/data/input_videos/mp_.mp4"
 
 async def get_topic():
     return "frames-ready-for-ai"

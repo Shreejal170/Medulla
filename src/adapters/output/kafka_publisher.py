@@ -1,6 +1,7 @@
 import json
 import logging
 from confluent_kafka import Producer
+
 # from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
 
@@ -8,19 +9,29 @@ from src.ports.output.message_publisher import MessagePublisherPort
 
 logger = logging.getLogger(__name__)
 
+
 class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
     """
     Concrete implementation of the MessagePublisherPort using aiokafka.
+
+    Attrs:
+        bootstrap_servers: Kafka broker address (e.g. "localhost:9092")
     """
+
     # *******
     def __init__(self, bootstrap_servers: str):
         """
         Stores configuration. Connection happens in the start() method.
+
+        Args:
+            bootstrap_servers: Kafka broker address (e.g. "localhost:9092")
+        Returns:
+            None
         """
         try:
             self.producer = None
             self.bootstrap_servers = bootstrap_servers
-            
+
         except Exception as e:
             logger.error(e)
 
@@ -29,26 +40,36 @@ class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
         """
         Initializes the async producer and connects to the broker.
         Must be called during application startup.
+
+        Args:
+            None
+        Returns:
+            None
         """
         try:
-            self.producer = Producer({
-                    'bootstrap.servers': self.bootstrap_servers,
+            self.producer = Producer(
+                {
+                    "bootstrap.servers": self.bootstrap_servers,
                     # Equivalent to acks='all'
-                    'request.required.acks': 'all', 
-                    'client.id': 'medulla-fovea-producer'
-                })
-            
+                    "request.required.acks": "all",
+                    "client.id": "medulla-fovea-producer",
+                }
+            )
+
             logger.info("Producer Started.")
         except Exception as e:
             logger.error(f"Failed to start Kafka producer: {e}", exc_info=True)
             raise
-    
 
     # *******
     async def stop(self) -> None:
         """
-        Gracefully shuts down the producer. 
+        Gracefully shuts down the producer.
         Must be called during application shutdown to prevent memory leaks.
+        Args:
+            None
+        Returns:
+            None
         """
         if self.producer is None:
             return
@@ -61,9 +82,16 @@ class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
     async def publish(self, topic: str, message: BaseModel) -> None:
         """
         Serializes and publishes a Pydantic model to Kafka.
+        Args:
+            topic: Kafka topic to publish to
+            message: A Pydantic BaseModel instance to serialize and send
+        Returns:
+            None
         """
         if self.producer is None:
-            raise RuntimeError("Kafka producer has not been started. Call start() before publish().")
+            raise RuntimeError(
+                "Kafka producer has not been started. Call start() before publish()."
+            )
 
         def delivery_report(err, msg):
             if err is not None:
@@ -73,19 +101,14 @@ class ConfluentKafkaPublisherAdapter(MessagePublisherPort):
 
         try:
             # model_dump_json() outputs a string, which encode to bytes
-            payload = message.model_dump_json().encode('utf-8')
-            
+            payload = message.model_dump_json().encode("utf-8")
+
             # Hand the message to the background C-thread
-            self.producer.produce(
-                topic, 
-                value=payload, 
-                callback=delivery_report
-            )
-            
+            self.producer.produce(topic, value=payload, callback=delivery_report)
+
             # Trigger the background thread to evaluate callbacks
             self.producer.poll(0)
-            
+
         except Exception as e:
             logger.error(f"Failed to publish message: {e}")
             raise
-        

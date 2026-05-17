@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable
 
+
 class MessageConsumerPort(ABC):
     """
     Abstract interface for consuming messages asynchronously from a message broker.
@@ -24,10 +25,10 @@ class MessageConsumerPort(ABC):
     def subscribe(self, topic: str, handler: Callable[[str], Awaitable[None]]) -> None:
         """
         Registers an application service function to process incoming messages.
-        
+
         Args:
             topic (str): The destination topic name (e.g., 'frames-ready-for-ai').
-            handler (Callable): An async function that accepts the raw JSON string 
+            handler (Callable): An async function that accepts the raw JSON string
                                 from the broker and processes it.
         """
         pass

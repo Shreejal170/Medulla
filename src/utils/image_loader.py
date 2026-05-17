@@ -8,6 +8,10 @@ def load_image(file_path: str) -> str:
 
     This function is synchronous to keep usage simple across the codebase.
     It returns an empty string on error.
+    Args:
+        file_path: The path to the image file to be loaded.
+    Returns:
+        A base64-encoded string of the image in PNG format, or an empty string if loading fails.
     """
     try:
         with Image.open(file_path) as img:

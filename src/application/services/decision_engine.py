@@ -131,8 +131,7 @@ def rule_avg_confidence_fallback(ctx: RuleContext) -> Optional[Verdict]:
             is_authentic=True,
             confidence="low",
             explanation=(
-                f"Authentic (low confidence). "
-                f"Average confidence score: {avg:.2f}."
+                f"Authentic (low confidence). Average confidence score: {avg:.2f}."
             ),
         )
 
@@ -142,8 +141,7 @@ def rule_avg_confidence_fallback(ctx: RuleContext) -> Optional[Verdict]:
             is_authentic=False,
             confidence="low",
             explanation=(
-                f"AI-generated (low confidence). "
-                f"Average confidence score: {avg:.2f}."
+                f"AI-generated (low confidence). Average confidence score: {avg:.2f}."
             ),
         )
 
@@ -240,10 +238,7 @@ def run_decision_engine(
         )
 
         # Execute rules by priority order
-        verdict = next(
-            v for rule in RULES
-            if (v := rule(ctx)) is not None
-        )
+        verdict = next(v for rule in RULES if (v := rule(ctx)) is not None)
 
         metrics.analysis_summary = (
             f"{verdict.explanation} | "

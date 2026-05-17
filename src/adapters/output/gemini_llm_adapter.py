@@ -15,8 +15,19 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiLlmAdapter(LlmPort):
+    """Adapter class to integrate with Google Gemini LLM using the official GenAI SDK.
+
+    Attrs:
+        llm_client: An instance of the GenAI Client configured with the appropriate API key.
+        model_name: The specific Gemini model to use for analysis (default: "gemini-3.1-flash-lite").
+    """
 
     def __init__(self, llm_client, model_name: str = "gemini-3.1-flash-lite"):
+        """Initialize the Gemini LLM Adapter with the given client and model name.
+        Args:
+            llm_client: An instance of the GenAI Client configured with the appropriate API key.
+            model_name: The specific Gemini model to use for analysis (default: "gemini-3.1-flash-lite").
+        """
         self.llm_client = llm_client
         self.model_name = model_name
 
@@ -24,6 +35,12 @@ class GeminiLlmAdapter(LlmPort):
         """
         Converts raw prompt + image_data into Gemini-native types.Content objects.
         Handles base64 strings, raw bytes, and file paths.
+
+        Args:
+            prompt: The text prompt to guide the LLM's analysis.
+            image_data: The raw image data (base64 string, bytes, or file path) of the frame to analyze.
+        Returns:
+            A list of types.Content objects formatted for Gemini input.
         """
         # --- Build the image Part ---
         if isinstance(image_data, bytes):
@@ -67,6 +84,12 @@ class GeminiLlmAdapter(LlmPort):
         """
         Recursively remove 'examples' keys from a Pydantic JSON schema
         because Google GenAI's Schema type does not accept them.
+
+
+        Args:
+            schema: A JSON schema dictionary potentially containing 'examples' keys.
+        Returns:
+            A cleaned JSON schema dictionary with all 'examples' keys removed.
         """
         if isinstance(schema, dict):
             return {
@@ -79,6 +102,13 @@ class GeminiLlmAdapter(LlmPort):
         return schema
 
     def _parse_response(self, response) -> dict:
+        """
+        Parses the LLM response into a dictionary.
+        Args:
+            response: The raw response from the LLM.
+        Returns:
+            A dictionary containing the parsed response.
+        """
         if hasattr(response, "parsed") and response.parsed is not None:
             parsed = response.parsed
             return parsed if isinstance(parsed, dict) else parsed.__dict__
@@ -90,6 +120,16 @@ class GeminiLlmAdapter(LlmPort):
     async def generate_frame_analysis(
         self, prompt: str, image_data, frame_id: str
     ) -> FrameAnalysis:
+        """
+        Generates results based on the provided data using Google Gemini.
+        Args:
+            prompt: The text prompt to guide the LLM's analysis.
+            image_data: The raw image data (base64 string, bytes, or file path) of the frame to analyze.
+            frame_id: The unique identifier for the frame being analyzed.
+        Returns:
+            A FrameAnalysis object containing the analysis results.
+        """
+
         try:
             contents = self._build_contents(prompt, image_data)
 
@@ -98,7 +138,9 @@ class GeminiLlmAdapter(LlmPort):
                 contents=contents,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=self._clean_schema(FrameAnalysis.model_json_schema()),
+                    response_schema=self._clean_schema(
+                        FrameAnalysis.model_json_schema()
+                    ),
                 ),
             )
 
@@ -136,7 +178,17 @@ class GeminiLlmAdapter(LlmPort):
                 synthesis_artifacts=[],
             )
 
-    def get_visual_evidence(self, analyses: list[FrameAnalysis]) -> list[SynthesisArtifact]:
+    def get_visual_evidence(
+        self, analyses: list[FrameAnalysis]
+    ) -> list[SynthesisArtifact]:
+        """
+        Generates a forensic artifact summary based on the analyses of multiple frames.
+        Args:
+            analyses: A list of FrameAnalysis objects to evaluate for forensic evidence.
+        Returns:
+            A list of SynthesisArtifact objects representing the extracted forensic evidence.
+        """
+
         try:
             suspicious_frames = [f for f in analyses if f.confidence_score < -0.5]
             if not suspicious_frames:
@@ -184,5 +236,7 @@ class GeminiLlmAdapter(LlmPort):
             return artifacts
 
         except Exception as e:
-            logger.error(f"Error generating forensic artifact summary: {e}", exc_info=True)
+            logger.error(
+                f"Error generating forensic artifact summary: {e}", exc_info=True
+            )
             return []
